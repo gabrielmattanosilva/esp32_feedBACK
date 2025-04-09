@@ -6,14 +6,16 @@
     return mpu.testConnection();
 }*/
 
-void MPU6050Handler::initialize() {
+void MPU6050Handler::initialize()
+{
     Wire.begin();
     mpu.initialize();
     optimizeMPU();
     loadCalibration();
 }
 
-void MPU6050Handler::optimizeMPU() {
+void MPU6050Handler::optimizeMPU()
+{
     mpu.setDLPFMode(MPU6050_DLPF_BW_5);
     mpu.setRate(4);
     mpu.setSleepEnabled(false);
@@ -21,7 +23,8 @@ void MPU6050Handler::optimizeMPU() {
     mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_250);
 }
 
-SensorData MPU6050Handler::readSensorData() {
+SensorData MPU6050Handler::readSensorData()
+{
     SensorData data;
     int16_t ax, ay, az, gx, gy, gz;
 
@@ -38,25 +41,31 @@ SensorData MPU6050Handler::readSensorData() {
     return data;
 }
 
-PostureState MPU6050Handler::evaluatePosture(float pitch, float roll) {
+PostureState MPU6050Handler::evaluatePosture(float pitch, float roll)
+{
     float warningThreshold = 15.0;
     float badThreshold = 25.0;
     float maxAngle = max(abs(pitch), abs(roll));
 
-    if (maxAngle > badThreshold) return POSTURE_BAD;
-    if (maxAngle > warningThreshold) return POSTURE_WARNING;
+    if (maxAngle > badThreshold)
+        return POSTURE_BAD;
+    if (maxAngle > warningThreshold)
+        return POSTURE_WARNING;
     return POSTURE_GOOD;
 }
 
-bool MPU6050Handler::isCalibrationButtonPressed() {
-    if (digitalRead(CALIBRATION_BUTTON) == LOW) {
+bool MPU6050Handler::isCalibrationButtonPressed()
+{
+    if (digitalRead(CALIBRATION_BUTTON) == LOW)
+    {
         delay(50); // Debounce
         return digitalRead(CALIBRATION_BUTTON) == LOW;
     }
     return false;
 }
 
-void MPU6050Handler::calibrate() {
+void MPU6050Handler::calibrate()
+{
     mpu.CalibrateAccel(6);
     mpu.CalibrateGyro(6);
 
@@ -71,19 +80,22 @@ void MPU6050Handler::calibrate() {
     saveCalibration();
 }
 
-void MPU6050Handler::saveCalibration() {
+void MPU6050Handler::saveCalibration()
+{
     EEPROM.begin(sizeof(CalibrationData));
     EEPROM.put(0, calData);
     EEPROM.commit();
     EEPROM.end();
 }
 
-void MPU6050Handler::loadCalibration() {
+void MPU6050Handler::loadCalibration()
+{
     EEPROM.begin(sizeof(CalibrationData));
     EEPROM.get(0, calData);
     EEPROM.end();
 
-    if (isnan(calData.accelX_offset)) {
+    if (isnan(calData.accelX_offset))
+    {
         memset(&calData, 0, sizeof(CalibrationData));
     }
 }

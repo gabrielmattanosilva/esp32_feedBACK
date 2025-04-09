@@ -3,7 +3,8 @@
 
 #include <Arduino.h>
 
-class FeedbackHandler {
+class FeedbackHandler
+{
 public:
     FeedbackHandler();
     void initialize();
@@ -13,11 +14,11 @@ public:
     void blinkLED();
     void startupSequence();
     void blinkError(int count);
-    
+
 private:
     const int VIBRATION_PIN = 4;
     const int LED_PIN = 2;
-    
+
     // Variáveis para controle não-bloqueante
     unsigned long vibrationStartTime = 0;
     unsigned long vibrationDuration = 0;

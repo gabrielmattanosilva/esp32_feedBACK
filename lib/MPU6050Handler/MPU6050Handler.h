@@ -5,13 +5,15 @@
 #include <MPU6050.h>
 #include <EEPROM.h>
 
-enum PostureState {
+enum PostureState
+{
     POSTURE_GOOD,
     POSTURE_WARNING,
     POSTURE_BAD
 };
 
-struct CalibrationData {
+struct CalibrationData
+{
     float accelX_offset;
     float accelY_offset;
     float accelZ_offset;
@@ -20,14 +22,16 @@ struct CalibrationData {
     float gyroZ_offset;
 };
 
-struct SensorData {
+struct SensorData
+{
     float accelX, accelY, accelZ;
     float gyroX, gyroY, gyroZ;
 };
 
-class MPU6050Handler {
+class MPU6050Handler
+{
 public:
-    //bool testConnection();
+    // bool testConnection();
     void initialize();
     void calibrate();
     SensorData readSensorData();
@@ -38,7 +42,7 @@ public:
 private:
     MPU6050 mpu;
     CalibrationData calData;
-    
+
     void optimizeMPU();
     void loadCalibration();
     void saveCalibration();
