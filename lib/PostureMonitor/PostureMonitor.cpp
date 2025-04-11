@@ -13,27 +13,21 @@ void PostureMonitor::initialize()
 
 void PostureMonitor::update()
 {
-    // Atualiza feedback (não-bloqueante)
     feedbackHandler.update();
 
-    // Verifica botão de calibração (não-bloqueante)
     if (mpuHandler.isCalibrationButtonPressed())
     {
         mpuHandler.calibrate();
     }
 
-    // Lê dados do sensor
     SensorData data = mpuHandler.readSensorData();
 
-    // Atualiza filtro
     filter.updateIMU(data.gyroX, data.gyroY, data.gyroZ,
                      data.accelX, data.accelY, data.accelZ);
 
-    // Obtém ângulos
     pitch = filter.getPitch();
     roll = filter.getRoll();
 
-    // Avalia postura
     PostureState newPosture = mpuHandler.evaluatePosture(pitch, roll);
     bool stateChanged = (newPosture != currentPosture);
 
@@ -48,7 +42,6 @@ void PostureMonitor::update()
 
     handlePostureState(currentPosture, stateChanged);
 
-    // Log dos dados
     Logger::logPostureData(
         pitch,
         roll,
@@ -61,14 +54,14 @@ void PostureMonitor::handlePostureState(PostureState state, bool stateChanged)
     switch (state)
     {
     case POSTURE_GOOD:
+        feedbackHandler.stopBlinking();
         feedbackHandler.setLED(false);
         break;
-
     case POSTURE_WARNING:
         feedbackHandler.blinkLED();
         if (millis() - postureTimer > mpuHandler.getBadPostureTimeThreshold())
         {
-            feedbackHandler.triggerVibration(1, 200);
+            feedbackHandler.triggerVibration(1, 200); // 200ms - definir no .h
         }
         break;
 
@@ -76,7 +69,7 @@ void PostureMonitor::handlePostureState(PostureState state, bool stateChanged)
         feedbackHandler.setLED(true);
         if (stateChanged || (lastFeedbackTime == 0 || millis() - lastFeedbackTime > feedbackCooldown))
         {
-            feedbackHandler.triggerVibration(3, 500);
+            feedbackHandler.triggerVibration(3, 500); // 500 ms - definir no .h
             lastFeedbackTime = millis();
         }
         break;

@@ -2,10 +2,12 @@
 
 #define CALIBRATION_BUTTON 0
 
+// Implementar
 /*bool MPU6050Handler::testConnection() {
     return mpu.testConnection();
 }*/
 
+// Pulbic
 void MPU6050Handler::initialize()
 {
     Wire.begin();
@@ -14,13 +16,20 @@ void MPU6050Handler::initialize()
     loadCalibration();
 }
 
-void MPU6050Handler::optimizeMPU()
+void MPU6050Handler::calibrate()
 {
-    mpu.setDLPFMode(MPU6050_DLPF_BW_5);
-    mpu.setRate(4);
-    mpu.setSleepEnabled(false);
-    mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
-    mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_250);
+    mpu.CalibrateAccel(6);
+    mpu.CalibrateGyro(6);
+
+    calData.accelX_offset = mpu.getXAccelOffset() / 16384.0;
+    calData.accelY_offset = mpu.getYAccelOffset() / 16384.0;
+    calData.accelZ_offset = (mpu.getZAccelOffset() - 16384) / 16384.0;
+
+    calData.gyroX_offset = mpu.getXGyroOffset() / 131.0;
+    calData.gyroY_offset = mpu.getYGyroOffset() / 131.0;
+    calData.gyroZ_offset = mpu.getZGyroOffset() / 131.0;
+
+    saveCalibration();
 }
 
 SensorData MPU6050Handler::readSensorData()
@@ -58,26 +67,20 @@ bool MPU6050Handler::isCalibrationButtonPressed()
 {
     if (digitalRead(CALIBRATION_BUTTON) == LOW)
     {
-        delay(50); // Debounce
+        delay(50); // Debounce - definir no .h
         return digitalRead(CALIBRATION_BUTTON) == LOW;
     }
     return false;
 }
 
-void MPU6050Handler::calibrate()
+// Private
+void MPU6050Handler::optimizeMPU()
 {
-    mpu.CalibrateAccel(6);
-    mpu.CalibrateGyro(6);
-
-    calData.accelX_offset = mpu.getXAccelOffset() / 16384.0;
-    calData.accelY_offset = mpu.getYAccelOffset() / 16384.0;
-    calData.accelZ_offset = (mpu.getZAccelOffset() - 16384) / 16384.0;
-
-    calData.gyroX_offset = mpu.getXGyroOffset() / 131.0;
-    calData.gyroY_offset = mpu.getYGyroOffset() / 131.0;
-    calData.gyroZ_offset = mpu.getZGyroOffset() / 131.0;
-
-    saveCalibration();
+    mpu.setDLPFMode(MPU6050_DLPF_BW_5);
+    mpu.setRate(4);
+    mpu.setSleepEnabled(false);
+    mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
+    mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_250);
 }
 
 void MPU6050Handler::saveCalibration()

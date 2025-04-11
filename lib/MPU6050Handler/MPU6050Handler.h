@@ -31,13 +31,13 @@ struct SensorData
 class MPU6050Handler
 {
 public:
-    // bool testConnection();
+    // bool testConnection(); - implementar
     void initialize();
     void calibrate();
     SensorData readSensorData();
     PostureState evaluatePosture(float pitch, float roll);
     bool isCalibrationButtonPressed();
-    unsigned long getBadPostureTimeThreshold() const { return 5000; }
+    unsigned long getBadPostureTimeThreshold() const { return 5000; } // Verificar
 
 private:
     MPU6050 mpu;

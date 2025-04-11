@@ -9,7 +9,7 @@ class PostureMonitor
 {
 public:
     void initialize();
-    void update(); // Agora totalmente não-bloqueante
+    void update();
 
 private:
     MPU6050Handler mpuHandler;

@@ -9,38 +9,45 @@ void FeedbackHandler::initialize()
     startupSequence();
 }
 
-void FeedbackHandler::update()
+void FeedbackHandler::startupSequence()
 {
-    // Atualiza vibração
-    if (vibrationActive)
+    for (int i = 0; i < 3; i++)
     {
-        if (millis() - vibrationStartTime >= vibrationDuration)
-        {
-            digitalWrite(VIBRATION_PIN, LOW);
-            vibrationCount--;
-
-            if (vibrationCount > 0)
-            {
-                vibrationStartTime = millis() + 200; // Intervalo entre vibrações
-            }
-            else
-            {
-                vibrationActive = false;
-            }
-        }
-        else if (millis() >= vibrationStartTime)
-        {
-            digitalWrite(VIBRATION_PIN, HIGH);
-        }
+        setLED(true);
+        digitalWrite(VIBRATION_PIN, HIGH);
+        delay(100);
+        setLED(false);
+        digitalWrite(VIBRATION_PIN, LOW);
+        delay(100);
     }
+}
 
-    // Atualiza LED piscante
-    if (millis() - lastBlinkTime >= 500)
-    {   // Pisca a cada 500ms
-        ledState = !ledState;
-        digitalWrite(LED_PIN, ledState);
-        lastBlinkTime = millis();
+void FeedbackHandler::setLED(bool state)
+{
+    ledState = state;
+    digitalWrite(LED_PIN, ledState);
+}
+
+void FeedbackHandler::blinkLED()
+{
+    shouldBlink = true;
+}
+
+void FeedbackHandler::blinkError(int count) // Ainda não foi implementada, usar para indicar falha na I2C, BLE, etc...
+{
+    for (int i = 0; i < count; i++)
+    {   // 200ms entre as piscadas - definir no .h
+        setLED(true);
+        delay(200);
+        setLED(false);
+        delay(200);
     }
+}
+
+void FeedbackHandler::stopBlinking()
+{
+    shouldBlink = false;
+    digitalWrite(LED_PIN, LOW);
 }
 
 void FeedbackHandler::triggerVibration(int count, int duration)
@@ -52,37 +59,34 @@ void FeedbackHandler::triggerVibration(int count, int duration)
     lastVibrationTime = millis();
 }
 
-void FeedbackHandler::setLED(bool state)
+void FeedbackHandler::update()
 {
-    ledState = state;
-    digitalWrite(LED_PIN, ledState);
-}
-
-void FeedbackHandler::blinkLED()
-{
-    // Implementado no método update()
-}
-
-void FeedbackHandler::startupSequence()
-{
-    for (int i = 0; i < 3; i++)
+    if (shouldBlink && millis() - lastBlinkTime >= 500) // 500ms entre as piscadas - definir no .h
     {
-        setLED(true);
-        digitalWrite(VIBRATION_PIN, HIGH);
-        delay(100); // Pequeno delay aceitável durante inicialização
-        setLED(false);
-        digitalWrite(VIBRATION_PIN, LOW);
-        delay(100);
+        ledState = !ledState;
+        digitalWrite(LED_PIN, ledState);
+        lastBlinkTime = millis();
     }
-}
 
-void FeedbackHandler::blinkError(int count)
-{
-    for (int i = 0; i < count; i++)
+    if (vibrationActive)
     {
-        setLED(true);
-        delay(200);
-        setLED(false);
-        delay(200);
+        if (millis() - vibrationStartTime >= vibrationDuration)
+        {
+            digitalWrite(VIBRATION_PIN, LOW);
+            vibrationCount--;
+
+            if (vibrationCount > 0)
+            {
+                vibrationStartTime = millis() + 200; // 200ms entre vibrações - definir no .h
+            }
+            else
+            {
+                vibrationActive = false;
+            }
+        }
+        else if (millis() >= vibrationStartTime)
+        {
+            digitalWrite(VIBRATION_PIN, HIGH);
+        }
     }
 }
