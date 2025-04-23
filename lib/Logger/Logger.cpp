@@ -25,9 +25,6 @@ void Logger::logPostureData(float pitch, float roll, bool stateChanged, const ch
     // Codifica os dados
     String encoded = DataEncoder::encode(pitch, roll, stateChanged, actionStr.c_str());
 
-    // Mostra codificado no serial
-    Serial.println(encoded);
-
     // Envia para o app via Bluetooth (em lote)
     PassDataBT::bufferAndSend(encoded);
 }

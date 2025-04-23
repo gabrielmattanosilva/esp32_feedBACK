@@ -6,13 +6,7 @@ PostureMonitor monitor;
 
 void setup()
 {
-    // Inicializa o logger antes de tudo
-    Logger::init();
-
-    // Delay para estabilização (opcional)
-    delay(1000);
-
-    ESP_LOGI("MAIN", "Iniciando sistema...");
+    ESP_LOGI("Main", "Iniciando sistema...");
     monitor.initialize();
 }
 
