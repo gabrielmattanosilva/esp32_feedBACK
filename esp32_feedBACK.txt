@@ -1,0 +1,620 @@
+
+/********** lib\DataEncoder\DataEncoder.cpp **********/
+
+#include "DataEncoder.h"
+
+String DataEncoder::encode(float pitch, float roll, bool stateChanged, const char *action)
+{
+    int actionCode = 0;
+    String act(action);
+
+    if (act == "Vibracao breve")
+    {
+        actionCode = 1;
+    }
+    else if (act.startsWith("Vibracao prolongada"))
+    {
+        actionCode = 2;
+    }
+    else
+    {
+        actionCode = 0; // "Nenhuma acao" ou qualquer outro
+    }
+
+    String encoded = String(pitch, 1) + "/" +
+                     String(roll, 1) + "/" +
+                     String(stateChanged ? 1 : 0) + "/" +
+                     String(actionCode);
+    return encoded;
+}
+
+
+/********** lib\DataEncoder\DataEncoder.h **********/
+
+#ifndef DATA_ENCODER_H
+#define DATA_ENCODER_H
+
+#include <Arduino.h>
+
+class DataEncoder
+{
+public:
+    static String encode(float pitch, float roll, bool stateChanged, const char *action);
+};
+
+#endif
+
+
+/********** lib\FeedbackHandler\FeedbackHandler.cpp **********/
+
+#include "FeedbackHandler.h"
+
+FeedbackHandler::FeedbackHandler() {}
+
+void FeedbackHandler::initialize()
+{
+    pinMode(PIN_VIBRATION, OUTPUT);
+    pinMode(PIN_LED, OUTPUT);
+    startupSequence();
+}
+
+void FeedbackHandler::startupSequence()
+{
+    for (int i = 0; i < 3; i++)
+    {
+        setLED(true);
+        digitalWrite(PIN_VIBRATION, HIGH);
+        delay(100);
+        setLED(false);
+        digitalWrite(PIN_VIBRATION, LOW);
+        delay(100);
+    }
+}
+
+void FeedbackHandler::setLED(bool state)
+{
+    ledState = state;
+    digitalWrite(PIN_LED, ledState);
+}
+
+void FeedbackHandler::blinkLED()
+{
+    shouldBlink = true;
+}
+
+void FeedbackHandler::blinkError(int count) // Ainda não foi implementada, usar para indicar falha na I2C, BLE, etc...
+{
+    for (int i = 0; i < count; i++)
+    {   // 200ms entre as piscadas - definir no .h
+        setLED(true);
+        delay(200);
+        setLED(false);
+        delay(200);
+    }
+}
+
+void FeedbackHandler::stopBlinking()
+{
+    shouldBlink = false;
+    digitalWrite(PIN_LED, LOW);
+}
+
+void FeedbackHandler::triggerVibration(int count, int duration)
+{
+    vibrationCount = count;
+    vibrationDuration = duration;
+    vibrationStartTime = millis();
+    vibrationActive = true;
+    lastVibrationTime = millis();
+}
+
+void FeedbackHandler::update()
+{
+    if (shouldBlink && millis() - lastBlinkTime >= 500) // 500ms entre as piscadas - definir no .h
+    {
+        ledState = !ledState;
+        digitalWrite(PIN_LED, ledState);
+        lastBlinkTime = millis();
+    }
+
+    if (vibrationActive)
+    {
+        if (millis() - vibrationStartTime >= vibrationDuration)
+        {
+            digitalWrite(PIN_VIBRATION, LOW);
+            vibrationCount--;
+
+            if (vibrationCount > 0)
+            {
+                vibrationStartTime = millis() + 200; // 200ms entre vibrações - definir no .h
+            }
+            else
+            {
+                vibrationActive = false;
+            }
+        }
+        else if (millis() >= vibrationStartTime)
+        {
+            digitalWrite(PIN_VIBRATION, HIGH);
+        }
+    }
+}
+
+/********** lib\FeedbackHandler\FeedbackHandler.h **********/
+
+#ifndef FEEDBACK_HANDLER_H
+#define FEEDBACK_HANDLER_H
+
+#include <Arduino.h>
+#include "Pins.h"
+
+class FeedbackHandler
+{
+public:
+    FeedbackHandler();
+    void initialize();
+    void startupSequence();
+    void setLED(bool state);
+    void blinkLED();
+    void blinkError(int count);
+    void stopBlinking();
+    void update();
+    void triggerVibration(int count, int duration);
+
+private:
+    bool ledState = false;
+    bool shouldBlink = false;
+    unsigned long lastBlinkTime = 0;
+    unsigned long vibrationStartTime = 0;
+    unsigned long vibrationDuration = 0;
+    int vibrationCount = 0;
+    bool vibrationActive = false;
+    unsigned long lastVibrationTime = 0;
+};
+
+#endif
+
+/********** lib\Logger\Logger.cpp **********/
+
+#include "Logger.h"
+#include "DataEncoder.h"
+//#include "PassDataBT.h"
+
+const char *Logger::TAG = "PostureMonitor";
+
+void Logger::init()
+{
+    Serial.begin(115200);
+    esp_log_level_set(TAG, ESP_LOG_INFO);
+    //PassDataBT::begin();
+}
+
+void Logger::logPostureData(float pitch, float roll, bool stateChanged, const char *action)
+{
+    ESP_LOGI(TAG, "%.1f | %.1f | %d | %s", pitch, roll, stateChanged ? 1 : 0, action);
+
+    // Extrair parte principal da ação
+    String actionStr(action);
+    int sepIndex = actionStr.indexOf(" | ");
+    if (sepIndex != -1) {
+        actionStr = actionStr.substring(0, sepIndex);
+    }
+
+    // Codifica os dados
+    String encoded = DataEncoder::encode(pitch, roll, stateChanged, actionStr.c_str());
+
+    // Mostra codificado no serial
+    Serial.println(encoded);
+
+    // Envia para o app via Bluetooth (em lote)
+    //PassDataBT::bufferAndSend(encoded);
+}
+
+
+/********** lib\Logger\Logger.h **********/
+
+#ifndef LOGGER_H
+#define LOGGER_H
+
+#include <esp_log.h>
+#include <stdarg.h>
+
+class Logger
+{
+public:
+    static void init();
+    static void logPostureData(float pitch, float roll, bool stateChanged, const char *action);
+    static void logMessage(esp_log_level_t level, const char *tag, const char *format, ...);
+
+private:
+    static const char *TAG;
+};
+
+#endif
+
+/********** lib\MPU6050Handler\MPU6050Handler.cpp **********/
+
+#include "MPU6050Handler.h"
+
+// Implementar
+/*bool MPU6050Handler::testConnection() {
+    return mpu.testConnection();
+}*/
+
+// Pulbic
+void MPU6050Handler::initialize()
+{
+    Wire.begin(PIN_MPU_SDA, PIN_MPU_SCL);
+    mpu.initialize();
+    optimizeMPU();
+    loadCalibration();
+}
+
+void MPU6050Handler::calibrate()
+{
+    mpu.CalibrateAccel(6);
+    mpu.CalibrateGyro(6);
+
+    calData.accelX_offset = mpu.getXAccelOffset() / 16384.0;
+    calData.accelY_offset = mpu.getYAccelOffset() / 16384.0;
+    calData.accelZ_offset = (mpu.getZAccelOffset() - 16384) / 16384.0;
+
+    calData.gyroX_offset = mpu.getXGyroOffset() / 131.0;
+    calData.gyroY_offset = mpu.getYGyroOffset() / 131.0;
+    calData.gyroZ_offset = mpu.getZGyroOffset() / 131.0;
+
+    saveCalibration();
+}
+
+SensorData MPU6050Handler::readSensorData()
+{
+    SensorData data;
+    int16_t ax, ay, az, gx, gy, gz;
+
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+    data.accelX = (ax / 16384.0) - calData.accelX_offset;
+    data.accelY = (ay / 16384.0) - calData.accelY_offset;
+    data.accelZ = (az / 16384.0) - calData.accelZ_offset;
+
+    data.gyroX = (gx / 131.0) - calData.gyroX_offset;
+    data.gyroY = (gy / 131.0) - calData.gyroY_offset;
+    data.gyroZ = (gz / 131.0) - calData.gyroZ_offset;
+
+    return data;
+}
+
+PostureState MPU6050Handler::evaluatePosture(float pitch, float roll)
+{
+    float warningThreshold = 15.0;
+    float badThreshold = 25.0;
+    float maxAngle = max(abs(pitch), abs(roll));
+
+    if (maxAngle > badThreshold)
+        return POSTURE_BAD;
+    if (maxAngle > warningThreshold)
+        return POSTURE_WARNING;
+    return POSTURE_GOOD;
+}
+
+bool MPU6050Handler::isCalibrationButtonPressed()
+{
+    if (digitalRead(PIN_BUTTON_CALIBRATE) == LOW)
+    {
+        delay(50); // Debounce - definir no .h
+        return digitalRead(PIN_BUTTON_CALIBRATE) == LOW;
+    }
+    return false;
+}
+
+// Private
+void MPU6050Handler::optimizeMPU()
+{
+    mpu.setDLPFMode(MPU6050_DLPF_BW_5);
+    mpu.setRate(4);
+    mpu.setSleepEnabled(false);
+    mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
+    mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_250);
+}
+
+void MPU6050Handler::saveCalibration()
+{
+    EEPROM.begin(sizeof(CalibrationData));
+    EEPROM.put(0, calData);
+    EEPROM.commit();
+    EEPROM.end();
+}
+
+void MPU6050Handler::loadCalibration()
+{
+    EEPROM.begin(sizeof(CalibrationData));
+    EEPROM.get(0, calData);
+    EEPROM.end();
+
+    if (isnan(calData.accelX_offset))
+    {
+        memset(&calData, 0, sizeof(CalibrationData));
+    }
+}
+
+/********** lib\MPU6050Handler\MPU6050Handler.h **********/
+
+#ifndef MPU6050_HANDLER_H
+#define MPU6050_HANDLER_H
+
+#include <Wire.h>
+#include <MPU6050.h>
+#include <EEPROM.h>
+#include "Pins.h"
+
+enum PostureState
+{
+    POSTURE_GOOD,
+    POSTURE_WARNING,
+    POSTURE_BAD
+};
+
+struct CalibrationData
+{
+    float accelX_offset;
+    float accelY_offset;
+    float accelZ_offset;
+    float gyroX_offset;
+    float gyroY_offset;
+    float gyroZ_offset;
+};
+
+struct SensorData
+{
+    float accelX, accelY, accelZ;
+    float gyroX, gyroY, gyroZ;
+};
+
+class MPU6050Handler
+{
+public:
+    // bool testConnection(); - implementar
+    void initialize();
+    void calibrate();
+    SensorData readSensorData();
+    PostureState evaluatePosture(float pitch, float roll);
+    bool isCalibrationButtonPressed();
+    unsigned long getBadPostureTimeThreshold() const { return 5000; } // Verificar
+
+private:
+    MPU6050 mpu;
+    CalibrationData calData;
+
+    void optimizeMPU();
+    void loadCalibration();
+    void saveCalibration();
+};
+
+#endif
+
+/********** lib\PassDataBT\PassDataBT.cpp **********/
+
+#include "PassDataBT.h"
+
+BluetoothSerial PassDataBT::bt;
+String PassDataBT::buffer = "";
+
+void PassDataBT::begin(const char *deviceName)
+{
+    bt.begin(deviceName);
+}
+
+void PassDataBT::bufferAndSend(const String &encodedLine)
+{
+    // Adiciona ao buffer com separador
+    if (!buffer.isEmpty())
+    {
+        buffer += ";";
+    }
+    buffer += encodedLine;
+
+    // Conta quantos dados estão no buffer
+    int count = 1;
+    for (char c : buffer)
+    {
+        if (c == ';')
+            count++;
+    }
+
+    // Se atingir limite, envia o lote
+    if (count >= maxBufferSize)
+    {
+        flushBuffer();
+    }
+}
+
+void PassDataBT::flushBuffer()
+{
+    bt.println(buffer);
+    buffer = "";
+}
+
+
+/********** lib\PassDataBT\PassDataBT.h **********/
+
+#ifndef PASSDATABT_H
+#define PASSDATABT_H
+
+#include <BluetoothSerial.h>
+
+class PassDataBT
+{
+public:
+    static void begin(const char *deviceName = "FeedBack Device");
+    static void bufferAndSend(const String &encodedLine); // Envia em lote
+
+private:
+    static BluetoothSerial bt;
+    static String buffer;
+    static const int maxBufferSize = 10;
+
+    static void flushBuffer(); // Envia o buffer acumulado
+};
+
+#endif
+
+
+/********** lib\PostureMonitor\PostureMonitor.cpp **********/
+
+#include "PostureMonitor.h"
+#include <MadgwickAHRS.h>
+
+Madgwick filter;
+
+void PostureMonitor::initialize()
+{
+    Logger::init();
+    mpuHandler.initialize();
+    feedbackHandler.initialize();
+    filter.begin(20);
+}
+
+void PostureMonitor::update()
+{
+    feedbackHandler.update();
+
+    if (mpuHandler.isCalibrationButtonPressed())
+    {
+        mpuHandler.calibrate();
+    }
+
+    SensorData data = mpuHandler.readSensorData();
+
+    filter.updateIMU(data.gyroX, data.gyroY, data.gyroZ,
+                     data.accelX, data.accelY, data.accelZ);
+
+    pitch = filter.getPitch();
+    roll = filter.getRoll();
+
+    PostureState newPosture = mpuHandler.evaluatePosture(pitch, roll);
+    bool stateChanged = (newPosture != currentPosture);
+
+    if (stateChanged)
+    {
+        if (newPosture > currentPosture)
+        {
+            postureTimer = millis();
+        }
+        currentPosture = newPosture;
+    }
+
+    handlePostureState(currentPosture, stateChanged);
+
+    Logger::logPostureData(
+        pitch,
+        roll,
+        stateChanged,
+        getActionMessage(currentPosture));
+}
+
+void PostureMonitor::handlePostureState(PostureState state, bool stateChanged)
+{
+    switch (state)
+    {
+    case POSTURE_GOOD:
+        feedbackHandler.stopBlinking();
+        feedbackHandler.setLED(false);
+        break;
+    case POSTURE_WARNING:
+        feedbackHandler.blinkLED();
+        if (millis() - postureTimer > mpuHandler.getBadPostureTimeThreshold())
+        {
+            feedbackHandler.triggerVibration(1, 200); // 200ms - definir no .h
+        }
+        break;
+
+    case POSTURE_BAD:
+        feedbackHandler.setLED(true);
+        if (stateChanged || (lastFeedbackTime == 0 || millis() - lastFeedbackTime > feedbackCooldown))
+        {
+            feedbackHandler.triggerVibration(3, 500); // 500 ms - definir no .h
+            lastFeedbackTime = millis();
+        }
+        break;
+    }
+}
+
+const char *PostureMonitor::getActionMessage(PostureState state)
+{
+    static char message[50];
+
+    switch (state)
+    {
+    case POSTURE_WARNING:
+        return "Vibracao breve";
+
+    case POSTURE_BAD:
+        if (lastFeedbackTime > 0 && (millis() - lastFeedbackTime) < feedbackCooldown)
+        {
+            unsigned long remaining = (feedbackCooldown - (millis() - lastFeedbackTime)) / 1000;
+            snprintf(message, sizeof(message), "Vibracao prolongada | Proxima verificacao em %lus", remaining);
+            return message;
+        }
+        return "Vibracao prolongada";
+
+    default:
+        return "Nenhuma acao";
+    }
+}
+
+/********** lib\PostureMonitor\PostureMonitor.h **********/
+
+#ifndef POSTURE_MONITOR_H
+#define POSTURE_MONITOR_H
+
+#include "MPU6050Handler.h"
+#include "FeedbackHandler.h"
+#include "Logger.h"
+
+class PostureMonitor
+{
+public:
+    void initialize();
+    void update();
+
+private:
+    MPU6050Handler mpuHandler;
+    FeedbackHandler feedbackHandler;
+
+    unsigned long lastFeedbackTime = 0;
+    const unsigned long feedbackCooldown = 30000; // 30 segundos
+    PostureState currentPosture = POSTURE_GOOD;
+    unsigned long postureTimer = 0;
+    float pitch = 0, roll = 0;
+
+    void handlePostureState(PostureState state, bool stateChanged);
+    const char *getActionMessage(PostureState state);
+};
+
+#endif
+
+/********** src\main.cpp **********/
+
+#include <Arduino.h>
+#include "PostureMonitor.h"
+#include "Logger.h"
+
+PostureMonitor monitor;
+
+void setup()
+{
+    // Inicializa o logger antes de tudo
+    Logger::init();
+
+    // Delay para estabilização (opcional)
+    delay(1000);
+
+    ESP_LOGI("MAIN", "Iniciando sistema...");
+    monitor.initialize();
+}
+
+void loop()
+{
+    monitor.update();
+    delay(50);
+}

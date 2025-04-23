@@ -1,6 +1,5 @@
 #include "MPU6050Handler.h"
-
-#define CALIBRATION_BUTTON 0
+#include "Logger.h"
 
 // Implementar
 /*bool MPU6050Handler::testConnection() {
@@ -10,7 +9,7 @@
 // Pulbic
 void MPU6050Handler::initialize()
 {
-    Wire.begin();
+    Wire.begin(PIN_MPU_SDA, PIN_MPU_SCL);
     mpu.initialize();
     optimizeMPU();
     loadCalibration();
@@ -18,9 +17,20 @@ void MPU6050Handler::initialize()
 
 void MPU6050Handler::calibrate()
 {
-    mpu.CalibrateAccel(6);
-    mpu.CalibrateGyro(6);
+    // Log inicial com instruções para o usuário
+    Logger::logMessage(ESP_LOG_INFO, "MPU6050", "Iniciando calibracao - posicione o dispositivo em superficie plana e mantenha imovel");
 
+    // Calibração do acelerômetro
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "Iniciando calibracao do acelerometro (6 iteracoes)");
+    mpu.CalibrateAccel(6);
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "Calibracao do acelerometro concluida");
+
+    // Calibração do giroscópio
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "Iniciando calibracao do giroscopio (6 iteracoes)");
+    mpu.CalibrateGyro(6);
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "Calibracao do giroscopio concluida");
+
+    // Calcula os offsets
     calData.accelX_offset = mpu.getXAccelOffset() / 16384.0;
     calData.accelY_offset = mpu.getYAccelOffset() / 16384.0;
     calData.accelZ_offset = (mpu.getZAccelOffset() - 16384) / 16384.0;
@@ -29,7 +39,24 @@ void MPU6050Handler::calibrate()
     calData.gyroY_offset = mpu.getYGyroOffset() / 131.0;
     calData.gyroZ_offset = mpu.getZGyroOffset() / 131.0;
 
+    // Log dos offsets calculados
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "Offsets do acelerometro:");
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "  X: %.5f", calData.accelX_offset);
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "  Y: %.5f", calData.accelY_offset);
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "  Z: %.5f", calData.accelZ_offset);
+
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "Offsets do giroscopio:");
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "  X: %.5f", calData.gyroX_offset);
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "  Y: %.5f", calData.gyroY_offset);
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "  Z: %.5f", calData.gyroZ_offset);
+
+    // Salva na EEPROM
+    Logger::logMessage(ESP_LOG_DEBUG, "MPU6050", "Salvando calibracao na EEPROM");
     saveCalibration();
+
+    // Log final
+    Logger::logMessage(ESP_LOG_INFO, "MPU6050", "Calibracao concluida com sucesso!");
+    Logger::logMessage(ESP_LOG_INFO, "MPU6050", "Dispositivo pronto para uso");
 }
 
 SensorData MPU6050Handler::readSensorData()
@@ -65,10 +92,11 @@ PostureState MPU6050Handler::evaluatePosture(float pitch, float roll)
 
 bool MPU6050Handler::isCalibrationButtonPressed()
 {
-    if (digitalRead(CALIBRATION_BUTTON) == LOW)
+    if (digitalRead(PIN_BUTTON_CALIBRATE) == LOW)
     {
         delay(50); // Debounce - definir no .h
-        return digitalRead(CALIBRATION_BUTTON) == LOW;
+        Logger::logMessage(ESP_LOG_INFO, "MPU6050", "Botao de calibracao pressionado");
+        return digitalRead(PIN_BUTTON_CALIBRATE) == LOW;
     }
     return false;
 }
