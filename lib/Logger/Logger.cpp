@@ -1,6 +1,6 @@
 #include "Logger.h"
 #include "DataEncoder.h"
-#include "PassDataBT.h"
+//#include "PassDataBT.h"
 
 const char *Logger::TAG = "PostureMonitor";
 
@@ -8,7 +8,7 @@ void Logger::init()
 {
     Serial.begin(115200);
     esp_log_level_set(TAG, ESP_LOG_INFO);
-    PassDataBT::begin();
+    //PassDataBT::begin();
 }
 
 void Logger::logPostureData(float pitch, float roll, bool stateChanged, const char *action)
@@ -29,5 +29,5 @@ void Logger::logPostureData(float pitch, float roll, bool stateChanged, const ch
     Serial.println(encoded);
 
     // Envia para o app via Bluetooth (em lote)
-    PassDataBT::bufferAndSend(encoded);
+    //PassDataBT::bufferAndSend(encoded);
 }
