@@ -1,7 +1,5 @@
 #include "MPU6050Handler.h"
 
-#define CALIBRATION_BUTTON 0
-
 // Implementar
 /*bool MPU6050Handler::testConnection() {
     return mpu.testConnection();
@@ -10,7 +8,7 @@
 // Pulbic
 void MPU6050Handler::initialize()
 {
-    Wire.begin();
+    Wire.begin(PIN_SDA, PIN_SCL);
     mpu.initialize();
     optimizeMPU();
     loadCalibration();
@@ -65,10 +63,10 @@ PostureState MPU6050Handler::evaluatePosture(float pitch, float roll)
 
 bool MPU6050Handler::isCalibrationButtonPressed()
 {
-    if (digitalRead(CALIBRATION_BUTTON) == LOW)
+    if (digitalRead(PIN_BUTTON_CALIBRATE) == LOW)
     {
         delay(50); // Debounce - definir no .h
-        return digitalRead(CALIBRATION_BUTTON) == LOW;
+        return digitalRead(PIN_BUTTON_CALIBRATE) == LOW;
     }
     return false;
 }

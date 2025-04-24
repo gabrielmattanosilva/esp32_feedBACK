@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <MPU6050.h>
 #include <EEPROM.h>
+#include "Pins.h"
 
 enum PostureState
 {

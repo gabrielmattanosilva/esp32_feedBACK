@@ -9,8 +9,7 @@ class Logger
 public:
     static void init();
     static void logPostureData(float pitch, float roll, bool stateChanged, const char *action);
-    static void logMessage(esp_log_level_t level, const char *tag, const char *format, ...);
-
+    
 private:
     static const char *TAG;
 };
