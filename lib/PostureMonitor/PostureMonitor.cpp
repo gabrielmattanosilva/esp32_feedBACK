@@ -15,11 +15,6 @@ void PostureMonitor::update()
 {
     feedbackHandler.update();
 
-    if (mpuHandler.isCalibrationButtonPressed())
-    {
-        mpuHandler.calibrate();
-    }
-
     SensorData data = mpuHandler.readSensorData();
 
     filter.updateIMU(data.gyroX, data.gyroY, data.gyroZ,
