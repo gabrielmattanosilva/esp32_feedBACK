@@ -5,6 +5,7 @@ FeedbackHandler::FeedbackHandler() {}
 void FeedbackHandler::initialize()
 {
     pinMode(PIN_VIBRATION, OUTPUT);
+    digitalWrite(PIN_VIBRATION, LOW);
     pinMode(PIN_LED, OUTPUT);
     digitalWrite(PIN_LED, LOW);
     startupSequence();
@@ -55,9 +56,9 @@ void FeedbackHandler::triggerVibration(int count, int duration)
 {
     vibrationCount = count;
     vibrationDuration = duration;
-    vibrationStartTime = millis();
+    vibrationStartTime = millis(); // Marca o início da primeira vibração
     vibrationActive = true;
-    lastVibrationTime = millis();
+    digitalWrite(PIN_VIBRATION, HIGH); // Começa imediatamente
 }
 
 void FeedbackHandler::update()
@@ -71,23 +72,34 @@ void FeedbackHandler::update()
 
     if (vibrationActive)
     {
-        if (millis() - vibrationStartTime >= vibrationDuration)
+        unsigned long currentTime = millis();
+
+        if (currentTime - vibrationStartTime < vibrationDuration)
         {
+            // Período de vibração
+            digitalWrite(PIN_VIBRATION, HIGH);
+        }
+        else if (currentTime - vibrationStartTime < vibrationDuration + 200)
+        {
+            // Período de pausa entre vibrações
             digitalWrite(PIN_VIBRATION, LOW);
+        }
+        else
+        {
+            // Finalizou um ciclo completo (vibração + pausa)
             vibrationCount--;
 
             if (vibrationCount > 0)
             {
-                vibrationStartTime = millis() + 200; // 200ms entre vibrações - definir no .h
+                // Prepara próxima vibração
+                vibrationStartTime = currentTime;
             }
             else
             {
+                // Finalizou todas as vibrações
                 vibrationActive = false;
+                digitalWrite(PIN_VIBRATION, LOW);
             }
-        }
-        else if (millis() >= vibrationStartTime)
-        {
-            digitalWrite(PIN_VIBRATION, HIGH);
         }
     }
 }

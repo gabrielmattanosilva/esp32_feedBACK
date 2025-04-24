@@ -16,6 +16,7 @@ public:
     void stopBlinking();
     void update();
     void triggerVibration(int count, int duration);
+    bool isVibrating() const { return vibrationActive; }
 
 private:
     bool ledState = false;

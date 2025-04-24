@@ -52,19 +52,24 @@ void PostureMonitor::handlePostureState(PostureState state, bool stateChanged)
         feedbackHandler.stopBlinking();
         feedbackHandler.setLED(false);
         break;
+
     case POSTURE_WARNING:
         feedbackHandler.blinkLED();
-        if (millis() - postureTimer > mpuHandler.getBadPostureTimeThreshold())
+        // Vibração curta sempre que entrar no WARNING
+        if (stateChanged)
         {
-            feedbackHandler.triggerVibration(1, 200); // 200ms - definir no .h
+            feedbackHandler.triggerVibration(1, 200); // 1 vibração de 200ms
         }
         break;
 
     case POSTURE_BAD:
         feedbackHandler.setLED(true);
-        if (stateChanged || (lastFeedbackTime == 0 || millis() - lastFeedbackTime > feedbackCooldown))
+        // Verifica se já passou o cooldown OU se é uma nova entrada no estado BAD
+        if (stateChanged || (!feedbackHandler.isVibrating() &&
+                             (millis() - lastFeedbackTime > feedbackCooldown)))
         {
-            feedbackHandler.triggerVibration(3, 500); // 500 ms - definir no .h
+            feedbackHandler.triggerVibration(3, 500);
+            // Marca o tempo apenas quando INICIA a vibração
             lastFeedbackTime = millis();
         }
         break;

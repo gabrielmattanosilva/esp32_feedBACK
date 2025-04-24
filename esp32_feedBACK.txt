@@ -54,6 +54,7 @@ FeedbackHandler::FeedbackHandler() {}
 void FeedbackHandler::initialize()
 {
     pinMode(PIN_VIBRATION, OUTPUT);
+    digitalWrite(PIN_VIBRATION, LOW);
     pinMode(PIN_LED, OUTPUT);
     digitalWrite(PIN_LED, LOW);
     startupSequence();
@@ -404,7 +405,7 @@ void PostureMonitor::initialize()
     Logger::init();
     mpuHandler.initialize();
     feedbackHandler.initialize();
-    filter.begin(20);
+    filter.begin(10);
 }
 
 void PostureMonitor::update()
@@ -538,5 +539,5 @@ void setup()
 void loop()
 {
     monitor.update();
-    delay(500);
+    delay(50);
 }
