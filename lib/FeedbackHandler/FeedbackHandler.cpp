@@ -6,6 +6,7 @@ void FeedbackHandler::initialize()
 {
     pinMode(PIN_VIBRATION, OUTPUT);
     pinMode(PIN_LED, OUTPUT);
+    digitalWrite(PIN_LED, LOW);
     startupSequence();
 }
 
@@ -25,7 +26,7 @@ void FeedbackHandler::startupSequence()
 void FeedbackHandler::setLED(bool state)
 {
     ledState = state;
-    digitalWrite(PIN_LED, ledState);
+    digitalWrite(PIN_LED, ledState ? HIGH : LOW);
 }
 
 void FeedbackHandler::blinkLED()
@@ -36,10 +37,10 @@ void FeedbackHandler::blinkLED()
 void FeedbackHandler::blinkError(int count) // Ainda não foi implementada, usar para indicar falha na I2C, BLE, etc...
 {
     for (int i = 0; i < count; i++)
-    {   // 200ms entre as piscadas - definir no .h
-        setLED(true);
+    {
+        digitalWrite(PIN_LED, HIGH);
         delay(200);
-        setLED(false);
+        digitalWrite(PIN_LED, LOW);
         delay(200);
     }
 }
@@ -64,7 +65,7 @@ void FeedbackHandler::update()
     if (shouldBlink && millis() - lastBlinkTime >= 500) // 500ms entre as piscadas - definir no .h
     {
         ledState = !ledState;
-        digitalWrite(PIN_LED, ledState);
+        digitalWrite(PIN_LED, ledState ? HIGH : LOW);
         lastBlinkTime = millis();
     }
 

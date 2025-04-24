@@ -55,6 +55,7 @@ void FeedbackHandler::initialize()
 {
     pinMode(PIN_VIBRATION, OUTPUT);
     pinMode(PIN_LED, OUTPUT);
+    digitalWrite(PIN_LED, LOW);
     startupSequence();
 }
 
@@ -74,7 +75,7 @@ void FeedbackHandler::startupSequence()
 void FeedbackHandler::setLED(bool state)
 {
     ledState = state;
-    digitalWrite(PIN_LED, ledState);
+    digitalWrite(PIN_LED, ledState ? HIGH : LOW);
 }
 
 void FeedbackHandler::blinkLED()
@@ -85,10 +86,10 @@ void FeedbackHandler::blinkLED()
 void FeedbackHandler::blinkError(int count) // Ainda não foi implementada, usar para indicar falha na I2C, BLE, etc...
 {
     for (int i = 0; i < count; i++)
-    {   // 200ms entre as piscadas - definir no .h
-        setLED(true);
+    {
+        digitalWrite(PIN_LED, HIGH);
         delay(200);
-        setLED(false);
+        digitalWrite(PIN_LED, LOW);
         delay(200);
     }
 }
@@ -113,7 +114,7 @@ void FeedbackHandler::update()
     if (shouldBlink && millis() - lastBlinkTime >= 500) // 500ms entre as piscadas - definir no .h
     {
         ledState = !ledState;
-        digitalWrite(PIN_LED, ledState);
+        digitalWrite(PIN_LED, ledState ? HIGH : LOW);
         lastBlinkTime = millis();
     }
 
@@ -203,13 +204,17 @@ void Logger::logPostureData(float pitch, float roll, bool stateChanged, const ch
     // Codifica os dados
     String encoded = DataEncoder::encode(pitch, roll, stateChanged, actionStr.c_str());
 
-    // Mostra codificado no serial
-    Serial.println(encoded);
-
     // Envia para o app via Bluetooth (em lote)
     //PassDataBT::bufferAndSend(encoded);
 }
 
+void Logger::logMessage(esp_log_level_t level, const char *tag, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    esp_log_writev(level, tag, format, args);
+    va_end(args);
+}
 
 /********** lib\Logger\Logger.h **********/
 
@@ -235,35 +240,13 @@ private:
 /********** lib\MPU6050Handler\MPU6050Handler.cpp **********/
 
 #include "MPU6050Handler.h"
+#include "Logger.h"
 
-// Implementar
-/*bool MPU6050Handler::testConnection() {
-    return mpu.testConnection();
-}*/
-
-// Pulbic
 void MPU6050Handler::initialize()
 {
-    Wire.begin(PIN_MPU_SDA, PIN_MPU_SCL);
+    Wire.begin(PIN_MPU_SDA, PIN_MPU_SCL, 400000);
     mpu.initialize();
     optimizeMPU();
-    loadCalibration();
-}
-
-void MPU6050Handler::calibrate()
-{
-    mpu.CalibrateAccel(6);
-    mpu.CalibrateGyro(6);
-
-    calData.accelX_offset = mpu.getXAccelOffset() / 16384.0;
-    calData.accelY_offset = mpu.getYAccelOffset() / 16384.0;
-    calData.accelZ_offset = (mpu.getZAccelOffset() - 16384) / 16384.0;
-
-    calData.gyroX_offset = mpu.getXGyroOffset() / 131.0;
-    calData.gyroY_offset = mpu.getYGyroOffset() / 131.0;
-    calData.gyroZ_offset = mpu.getZGyroOffset() / 131.0;
-
-    saveCalibration();
 }
 
 SensorData MPU6050Handler::readSensorData()
@@ -273,13 +256,13 @@ SensorData MPU6050Handler::readSensorData()
 
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-    data.accelX = (ax / 16384.0) - calData.accelX_offset;
-    data.accelY = (ay / 16384.0) - calData.accelY_offset;
-    data.accelZ = (az / 16384.0) - calData.accelZ_offset;
+    data.accelX = ax / 16384.0;
+    data.accelY = ay / 16384.0;
+    data.accelZ = az / 16384.0;
 
-    data.gyroX = (gx / 131.0) - calData.gyroX_offset;
-    data.gyroY = (gy / 131.0) - calData.gyroY_offset;
-    data.gyroZ = (gz / 131.0) - calData.gyroZ_offset;
+    data.gyroX = gx / 131.0;
+    data.gyroY = gy / 131.0;
+    data.gyroZ = gz / 131.0;
 
     return data;
 }
@@ -297,17 +280,6 @@ PostureState MPU6050Handler::evaluatePosture(float pitch, float roll)
     return POSTURE_GOOD;
 }
 
-bool MPU6050Handler::isCalibrationButtonPressed()
-{
-    if (digitalRead(PIN_BUTTON_CALIBRATE) == LOW)
-    {
-        delay(50); // Debounce - definir no .h
-        return digitalRead(PIN_BUTTON_CALIBRATE) == LOW;
-    }
-    return false;
-}
-
-// Private
 void MPU6050Handler::optimizeMPU()
 {
     mpu.setDLPFMode(MPU6050_DLPF_BW_5);
@@ -317,26 +289,6 @@ void MPU6050Handler::optimizeMPU()
     mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_250);
 }
 
-void MPU6050Handler::saveCalibration()
-{
-    EEPROM.begin(sizeof(CalibrationData));
-    EEPROM.put(0, calData);
-    EEPROM.commit();
-    EEPROM.end();
-}
-
-void MPU6050Handler::loadCalibration()
-{
-    EEPROM.begin(sizeof(CalibrationData));
-    EEPROM.get(0, calData);
-    EEPROM.end();
-
-    if (isnan(calData.accelX_offset))
-    {
-        memset(&calData, 0, sizeof(CalibrationData));
-    }
-}
-
 /********** lib\MPU6050Handler\MPU6050Handler.h **********/
 
 #ifndef MPU6050_HANDLER_H
@@ -344,7 +296,6 @@ void MPU6050Handler::loadCalibration()
 
 #include <Wire.h>
 #include <MPU6050.h>
-#include <EEPROM.h>
 #include "Pins.h"
 
 enum PostureState
@@ -352,16 +303,6 @@ enum PostureState
     POSTURE_GOOD,
     POSTURE_WARNING,
     POSTURE_BAD
-};
-
-struct CalibrationData
-{
-    float accelX_offset;
-    float accelY_offset;
-    float accelZ_offset;
-    float gyroX_offset;
-    float gyroY_offset;
-    float gyroZ_offset;
 };
 
 struct SensorData
@@ -373,23 +314,15 @@ struct SensorData
 class MPU6050Handler
 {
 public:
-    // bool testConnection(); - implementar
     void initialize();
-    void calibrate();
     SensorData readSensorData();
     PostureState evaluatePosture(float pitch, float roll);
-    bool isCalibrationButtonPressed();
-    unsigned long getBadPostureTimeThreshold() const { return 5000; } // Verificar
+    unsigned long getBadPostureTimeThreshold() const { return 5000; }
 
 private:
     MPU6050 mpu;
-    CalibrationData calData;
-
     void optimizeMPU();
-    void loadCalibration();
-    void saveCalibration();
 };
-
 #endif
 
 /********** lib\PassDataBT\PassDataBT.cpp **********/
@@ -477,11 +410,6 @@ void PostureMonitor::initialize()
 void PostureMonitor::update()
 {
     feedbackHandler.update();
-
-    if (mpuHandler.isCalibrationButtonPressed())
-    {
-        mpuHandler.calibrate();
-    }
 
     SensorData data = mpuHandler.readSensorData();
 
@@ -603,12 +531,6 @@ PostureMonitor monitor;
 
 void setup()
 {
-    // Inicializa o logger antes de tudo
-    Logger::init();
-
-    // Delay para estabilização (opcional)
-    delay(1000);
-
     ESP_LOGI("MAIN", "Iniciando sistema...");
     monitor.initialize();
 }
@@ -616,5 +538,5 @@ void setup()
 void loop()
 {
     monitor.update();
-    delay(50);
+    delay(500);
 }

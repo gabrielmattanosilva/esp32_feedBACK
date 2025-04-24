@@ -6,6 +6,5 @@
 #define PIN_MPU_SCL             6
 #define PIN_VIBRATION           4
 #define PIN_LED                 8
-#define PIN_BUTTON_CALIBRATE    9
 
 #endif

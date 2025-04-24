@@ -8,17 +8,12 @@ void PostureMonitor::initialize()
     Logger::init();
     mpuHandler.initialize();
     feedbackHandler.initialize();
-    filter.begin(20);
+    filter.begin(10);
 }
 
 void PostureMonitor::update()
 {
     feedbackHandler.update();
-
-    if (mpuHandler.isCalibrationButtonPressed())
-    {
-        mpuHandler.calibrate();
-    }
 
     SensorData data = mpuHandler.readSensorData();
 
