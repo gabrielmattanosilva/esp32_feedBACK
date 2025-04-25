@@ -3,7 +3,7 @@
 
 void MPU6050Handler::initialize()
 {
-    Wire.begin(PIN_MPU_SDA, PIN_MPU_SCL, 400000);
+    Wire.begin(PIN_SDA, PIN_SCL, 400000);
     mpu.initialize();
     optimizeMPU();
 }

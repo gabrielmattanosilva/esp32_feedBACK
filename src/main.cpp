@@ -13,5 +13,5 @@ void setup()
 void loop()
 {
     monitor.update();
-    delay(50);
+    delay(50); // 20Hz
 }
